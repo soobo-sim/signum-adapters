@@ -23,7 +23,14 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           BRANCH="${{ github.ref_name }}"
-          BASE_BRANCH="main"
+          # feature/v0/task-name -> base: release/v0
+          # feature/task-name    -> base: main
+          if echo "$BRANCH" | grep -qE '^feature/v[0-9]+/'; then
+            MAJOR=$(echo "$BRANCH" | sed 's|feature/v\([0-9]*\)/.*|\1|')
+            BASE_BRANCH="release/v${MAJOR}"
+          else
+            BASE_BRANCH="main"
+          fi
 
           # 이미 PR 존재하면 스킵
           EXISTING=$(gh pr list --head "$BRANCH" --base "$BASE_BRANCH" \
