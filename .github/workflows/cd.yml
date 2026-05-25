@@ -59,6 +59,11 @@ jobs:
           git tag "$TAG"
           git push origin "$TAG"
 
+      - name: Stamp version into pyproject.toml
+        shell: bash
+        run: |
+          sed -i "s/^version = .*/version = \"${{ steps.version.outputs.version }}\"/" pyproject.toml
+
       - name: Extract CHANGELOG section
         id: changelog
         shell: bash
@@ -106,6 +111,7 @@ jobs:
         with:
           context: .
           push: true
+          build-args: APP_VERSION=${{ steps.version.outputs.tag }}
           tags: |
             ghcr.io/${{ github.repository }}:${{ steps.version.outputs.tag }}
             ghcr.io/${{ github.repository }}:latest

@@ -6,6 +6,8 @@ RUN pip install --no-cache-dir build && python -m build --wheel
 
 # Stage 2: Runtime image with package installed
 FROM python:3.11-slim
+ARG APP_VERSION=dev
+ENV APP_VERSION=${APP_VERSION}
 WORKDIR /app
 
 # Copy built wheel so downstream images can COPY --from=... /dist/*.whl
