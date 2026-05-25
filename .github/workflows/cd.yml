@@ -33,9 +33,9 @@ jobs:
           BRANCH="${{ github.ref_name }}"
           MAJOR=$(echo "$BRANCH" | sed 's|release/v||')
 
-          # 원격 태그에서 현재 MAJOR의 최신 MINOR 조회
+          # Query remote tags for the latest MINOR under this MAJOR
           LATEST=$(git ls-remote --tags origin "refs/tags/v${MAJOR}.*" \
-            | awk -F'/' '{print $3}' | grep -v '\^{}' | sort -V | tail -1)
+            | awk -F'/' '{print $3}' | grep -v '\^{}' | sort -V | tail -1 || true)
 
           if [ -z "$LATEST" ]; then
             MINOR=0
