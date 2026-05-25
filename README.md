@@ -2,42 +2,52 @@
 
 Exchange adapter implementations for [signum-engine](https://github.com/soobo-sim/trading-engine).
 
-## 개요
+## Overview
 
-`signum-adapters`는 signum-engine의 `ExchangeAdapter` Protocol을 구현하는 거래소 어댑터 패키지입니다.
+`signum-adapters` provides `ExchangeAdapter` Protocol implementations for signum-engine.
 
 ```
 signum-engine  ←  ExchangeAdapter Protocol  ←  signum-adapters
                                                   └── GmoCoinAdapter
 ```
 
-## 설치
+## Language Policy
+
+> **All code in this repository is written in English.**
+> This includes source code, comments, docstrings, commit messages, PR titles, issue titles, and documentation.
+>
+> User-facing messages (errors, logs displayed to end users) must support multiple languages via a message bundle pattern — no hardcoded locale-specific strings in logic code.
+>
+> Contributor communication (issues, PR reviews, chat) may be in any language.
+
+## Installation
 
 ```bash
 pip install -e ".[dev]"
 ```
 
-## 지원 거래소
+## Supported Exchanges
 
-| 거래소 | 클래스 | 상태 |
-|--------|--------|------|
-| GMO Coin | `GmoCoinAdapter` | 🚧 개발 중 (v0.0 예정) |
+| Exchange | Class | Status |
+|----------|-------|--------|
+| GMO Coin | `GmoCoinAdapter` | 🚧 In development (v0.0) |
 
-## 개발
+## Development
 
 ```bash
-# 테스트 (API 키 불필요)
+# Run tests (no API key required)
 pytest -m "not requires_api_key"
 
-# lint
+# Lint
 ruff check src/ tests/
 ```
 
-## 관련 레포
-- [signum-engine](https://github.com/soobo-sim/trading-engine) — 플랫폼 코어 + Protocol 정의
-- [signum-strategy](https://github.com/soobo-sim/signum-strategy) — 전략 구현
-- [signum-backtest](https://github.com/soobo-sim/signum-backtest) — 백테스트 프레임워크
+## Related Repositories
 
-## 라이선스
+- [signum-engine](https://github.com/soobo-sim/trading-engine) — Platform core + Protocol definitions
+- [signum-strategy](https://github.com/soobo-sim/signum-strategy) — Strategy implementations
+- [signum-backtest](https://github.com/soobo-sim/signum-backtest) — Backtesting framework
+
+## License
 
 MIT
