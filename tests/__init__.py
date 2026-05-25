@@ -1,0 +1,1 @@
+# signum-adapters tests

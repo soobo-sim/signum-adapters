@@ -1,0 +1,21 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+.eggs/
+*.egg
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.env
+# .env.example 은 커밋 대상 (위 .env 규칙에서 제외)
+!.env.example
+*.log
+.DS_Store
