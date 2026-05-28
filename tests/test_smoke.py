@@ -1,6 +1,4 @@
 """Smoke tests: verify package imports, settings schema, and defaults."""
-import pytest
-
 from signum_adapters import __version__
 from signum_adapters.settings import GmoCoinSettings, gmo_coin_settings
 

@@ -6,6 +6,10 @@
 ## [Unreleased]
 
 ### Added
+- Smoke tests for settings schema and public defaults (`tests/test_smoke.py`)
+- `tests/conftest.py`: dummy credential injection for CI/local-dev without `.env`
+
+### Added
 - 프로젝트 초기 구조 설정 (pyproject.toml, src layout)
 - CI/CD 워크플로우 (ci.yml, cd.yml)
 - GitHub 에이전트 정의 (implementor.agent.md, validator.agent.md)
