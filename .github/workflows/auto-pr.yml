@@ -45,6 +45,14 @@ jobs:
             exit 0
           fi
 
+          # base 브랜치 fetch 후 커밋 존재 여부 확인
+          git fetch origin "$BASE_BRANCH" --depth=50 2>/dev/null || true
+          COMMIT_COUNT=$(git rev-list --count "origin/${BASE_BRANCH}..HEAD" 2>/dev/null || echo "0")
+          if [ "$COMMIT_COUNT" = "0" ]; then
+            echo "No commits between $BASE_BRANCH and $BRANCH — skip"
+            exit 0
+          fi
+
           # 이미 PR이 존재하면 스킵
           EXISTING=$(gh pr list --head "$BRANCH" --base "$BASE_BRANCH" \
             --json number --jq '.[0].number' 2>/dev/null)
