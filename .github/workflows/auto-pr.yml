@@ -3,7 +3,7 @@ name: Auto PR
 on:
   push:
     branches:
-      - 'feature/v-*'
+      - 'feature/v*'
       - 'hotfix/*'
 
 jobs:
@@ -25,11 +25,11 @@ jobs:
         run: |
           BRANCH="${{ github.ref_name }}"
 
-          # feature/v-0.1 또는 feature/v-0.1_text → release/v-0.1
+          # feature/v0.1 또는 feature/v0.1_text → release/v0.1
           # hotfix/{text} → main
-          if echo "$BRANCH" | grep -qE '^feature/v-[0-9]+\.[0-9]+'; then
-            VERSION=$(echo "$BRANCH" | sed 's|feature/v-||' | sed 's|_.*||')
-            BASE_BRANCH="release/v-${VERSION}"
+          if echo "$BRANCH" | grep -qE '^feature/v[0-9]+\.[0-9]+'; then
+            VERSION=$(echo "$BRANCH" | sed 's|feature/v||' | sed 's|_.*||')
+            BASE_BRANCH="release/v${VERSION}"
             PREFIX="feat"
           elif echo "$BRANCH" | grep -qE '^hotfix/'; then
             BASE_BRANCH="main"
@@ -54,8 +54,8 @@ jobs:
           fi
 
           # PR 제목 생성
-          VERSION_LABEL=$(echo "$BRANCH" | grep -oE 'v-[0-9]+\.[0-9]+' | head -1)
-          SUFFIX=$(echo "$BRANCH" | sed 's|feature/v-[0-9]*\.[0-9]*_\?||' | sed 's|hotfix/||' | sed 's|_| |g' | sed 's|-| |g')
+          VERSION_LABEL=$(echo "$BRANCH" | grep -oE 'v[0-9]+\.[0-9]+' | head -1)
+          SUFFIX=$(echo "$BRANCH" | sed 's|feature/v[0-9]*\.[0-9]*_\?||' | sed 's|hotfix/||' | sed 's|_| |g' | sed 's|-| |g')
 
           gh pr create \
             --title "[${PREFIX}] ${VERSION_LABEL} ${SUFFIX}" \

@@ -11,7 +11,7 @@ jobs:
     name: Tag & Registry & Next branches
     if: >
       github.event.pull_request.merged == true &&
-      startsWith(github.event.pull_request.head.ref, 'release/v-')
+      startsWith(github.event.pull_request.head.ref, 'release/v')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -30,20 +30,20 @@ jobs:
         shell: bash
         run: |
           BRANCH="${{ github.event.pull_request.head.ref }}"
-          VERSION=$(echo "$BRANCH" | sed 's|release/v-||')
+          VERSION=$(echo "$BRANCH" | sed 's|release/v||')
           MAJOR=$(echo "$VERSION" | cut -d. -f1)
           MINOR=$(echo "$VERSION" | cut -d. -f2)
           NEXT_MINOR=$((MINOR + 1))
           NEXT_VERSION="${MAJOR}.${NEXT_MINOR}"
 
           echo "version=$VERSION"            >> $GITHUB_OUTPUT
-          echo "tag=v-${VERSION}"            >> $GITHUB_OUTPUT
+          echo "tag=v${VERSION}"             >> $GITHUB_OUTPUT
           echo "next_version=$NEXT_VERSION"  >> $GITHUB_OUTPUT
-          echo "next_release=release/v-${NEXT_VERSION}" >> $GITHUB_OUTPUT
-          echo "next_feature=feature/v-${NEXT_VERSION}" >> $GITHUB_OUTPUT
+          echo "next_release=release/v${NEXT_VERSION}" >> $GITHUB_OUTPUT
+          echo "next_feature=feature/v${NEXT_VERSION}" >> $GITHUB_OUTPUT
 
-          echo "🏷️  Released : v-${VERSION}"
-          echo "🔜 Next     : v-${NEXT_VERSION}"
+          echo "🏷️  Released : v${VERSION}"
+          echo "🔜 Next     : v${NEXT_VERSION}"
 
       # ── 2. Git 태그 생성 ───────────────────────────────────
       - name: Create and push git tag
