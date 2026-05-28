@@ -39,19 +39,17 @@ jobs:
             exit 0
           fi
 
+          # base 브랜치가 원격에 존재하는지 확인
+          if ! git ls-remote --exit-code origin "$BASE_BRANCH" > /dev/null 2>&1; then
+            echo "Base branch '$BASE_BRANCH' does not exist on remote — skip"
+            exit 0
+          fi
+
           # 이미 PR이 존재하면 스킵
           EXISTING=$(gh pr list --head "$BRANCH" --base "$BASE_BRANCH" \
             --json number --jq '.[0].number' 2>/dev/null)
           if [ -n "$EXISTING" ]; then
             echo "PR already exists: #${EXISTING} — skip"
-            exit 0
-          fi
-
-          # base 브랜치와 diff가 없으면 스킵
-          git fetch origin "$BASE_BRANCH" --depth=50 2>/dev/null || true
-          DIFF_COUNT=$(git diff "origin/${BASE_BRANCH}..HEAD" --name-only 2>/dev/null | wc -l | tr -d ' ')
-          if [ "$DIFF_COUNT" -eq 0 ]; then
-            echo "No diff vs $BASE_BRANCH — skip PR"
             exit 0
           fi
 
