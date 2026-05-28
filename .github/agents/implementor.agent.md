@@ -79,16 +79,16 @@ grep -rn "<개념키워드>" src/ tests/ --include="*.py" | grep -v "__pycache__
 #### 3. Create branch
 
 ```bash
-# feature/v-0.1 브랜치는 Release 워크플로우가 자동 생성
+# feature/v0.1 브랜치는 Release 워크플로우가 자동 생성
 # → 해당 브랜치에서 바로 작업 시작
-git checkout feature/v-{major}.{minor}
+git checkout feature/v{major}.{minor}
 
 # 작업 설명을 접미사로 추가하고 싶을 때 (선택)
-git checkout -b feature/v-{major}.{minor}_{freetext}
-# e.g. feature/v-0.1_add-gmo-adapter
+git checkout -b feature/v{major}.{minor}_{freetext}
+# e.g. feature/v0.1_add-gmo-adapter
 ```
 
-> **브랜치 명명 규칙 (엄수)**: `feature/v-{major}.{minor}` 또는 `feature/v-{major}.{minor}_{소문자+하이픈}` 형식만 허용.
+> **브랜치 명명 규칙 (엄수)**: `feature/v{major}.{minor}` 또는 `feature/v{major}.{minor}_{소문자+하이픈}` 형식만 허용.
 > `feature/task` / `fix/task` 등 다른 형식은 CI에서 reject된다.
 
 #### 4. Per-line checks during implementation
@@ -118,9 +118,9 @@ python -m pytest tests/ -m "not requires_api_key" --tb=short -q
 
 ```bash
 gh pr create \
-  --title "[feat|fix] v-{major}.{minor} One-line summary (issue #N)" \
+  --title "[feat|fix] v{major}.{minor} One-line summary (issue #N)" \
   --body "$(cat .github/PULL_REQUEST_TEMPLATE.md)" \
-  --base release/v-{major}.{minor}
+  --base release/v{major}.{minor}
 ```
 
 After creating the PR, fill in the checklist with actual results and append:
