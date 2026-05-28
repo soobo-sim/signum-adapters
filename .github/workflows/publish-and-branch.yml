@@ -1,4 +1,4 @@
-name: Release
+name: Publish & Branch
 
 on:
   pull_request:
