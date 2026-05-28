@@ -3,7 +3,8 @@ name: Auto PR
 on:
   push:
     branches:
-      - 'feature/**'
+      - 'feature/v-*'
+      - 'hotfix/*'
 
 jobs:
   create-pr:
@@ -23,16 +24,22 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           BRANCH="${{ github.ref_name }}"
-          # feature/v0/task-name -> base: release/v0
-          # feature/task-name    -> base: main
-          if echo "$BRANCH" | grep -qE '^feature/v[0-9]+/'; then
-            MAJOR=$(echo "$BRANCH" | sed 's|feature/v\([0-9]*\)/.*|\1|')
-            BASE_BRANCH="release/v${MAJOR}"
-          else
+
+          # feature/v-0.1 또는 feature/v-0.1_text → release/v-0.1
+          # hotfix/{text} → main
+          if echo "$BRANCH" | grep -qE '^feature/v-[0-9]+\.[0-9]+'; then
+            VERSION=$(echo "$BRANCH" | sed 's|feature/v-||' | sed 's|_.*||')
+            BASE_BRANCH="release/v-${VERSION}"
+            PREFIX="feat"
+          elif echo "$BRANCH" | grep -qE '^hotfix/'; then
             BASE_BRANCH="main"
+            PREFIX="hotfix"
+          else
+            echo "Unrecognized branch pattern: $BRANCH — skip"
+            exit 0
           fi
 
-          # 이미 PR 존재하면 스킵
+          # 이미 PR이 존재하면 스킵
           EXISTING=$(gh pr list --head "$BRANCH" --base "$BASE_BRANCH" \
             --json number --jq '.[0].number' 2>/dev/null)
           if [ -n "$EXISTING" ]; then
@@ -40,7 +47,7 @@ jobs:
             exit 0
           fi
 
-          # diff 없으면 스킵
+          # base 브랜치와 diff가 없으면 스킵
           git fetch origin "$BASE_BRANCH" --depth=50 2>/dev/null || true
           DIFF_COUNT=$(git diff "origin/${BASE_BRANCH}..HEAD" --name-only 2>/dev/null | wc -l | tr -d ' ')
           if [ "$DIFF_COUNT" -eq 0 ]; then
@@ -48,11 +55,12 @@ jobs:
             exit 0
           fi
 
-          # BRANCH에서 이슈 번호 추출 (feature/gmo-coin-init 등)
-          TITLE=$(echo "$BRANCH" | sed 's|feature/||' | sed 's|-| |g')
+          # PR 제목 생성
+          VERSION_LABEL=$(echo "$BRANCH" | grep -oE 'v-[0-9]+\.[0-9]+' | head -1)
+          SUFFIX=$(echo "$BRANCH" | sed 's|feature/v-[0-9]*\.[0-9]*_\?||' | sed 's|hotfix/||' | sed 's|_| |g' | sed 's|-| |g')
 
           gh pr create \
-            --title "[feat] ${TITLE}" \
+            --title "[${PREFIX}] ${VERSION_LABEL} ${SUFFIX}" \
             --body "$(cat .github/PULL_REQUEST_TEMPLATE.md 2>/dev/null || echo 'PR 설명을 작성해주세요.')" \
             --base "$BASE_BRANCH" \
             --head "$BRANCH"
