@@ -4,14 +4,14 @@ on:
   pull_request:
     types: [closed]
     branches:
-      - main
+      - 'release/v*'
 
 jobs:
   release:
     name: Tag & Registry & Next branches
     if: >
       github.event.pull_request.merged == true &&
-      startsWith(github.event.pull_request.head.ref, 'release/v')
+      startsWith(github.event.pull_request.head.ref, 'feature/v')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -32,7 +32,7 @@ jobs:
         shell: bash
         run: |
           BRANCH="${{ github.event.pull_request.head.ref }}"
-          VERSION=$(echo "$BRANCH" | sed 's|release/v||')
+          VERSION=$(echo "$BRANCH" | sed 's|feature/v||' | sed 's|_.*||')
           MAJOR=$(echo "$VERSION" | cut -d. -f1)
           MINOR=$(echo "$VERSION" | cut -d. -f2)
           NEXT_MINOR=$((MINOR + 1))
@@ -97,15 +97,16 @@ jobs:
           git config user.email "ci@signum-adapters.bot"
           git config user.name "CI Bot"
 
-          git fetch origin main
-          git checkout main
-          git pull origin main
+          BASE_RELEASE="${{ github.event.pull_request.base.ref }}"
+          git fetch origin "$BASE_RELEASE"
+          git checkout "$BASE_RELEASE"
+          git pull origin "$BASE_RELEASE"
 
           git checkout -b "$NEXT_RELEASE"
           git push origin "$NEXT_RELEASE"
           echo "✅ Created: $NEXT_RELEASE"
 
-          git checkout main
+          git checkout "$BASE_RELEASE"
           git checkout -b "$NEXT_FEATURE"
           git push origin "$NEXT_FEATURE"
           echo "✅ Created: $NEXT_FEATURE"
