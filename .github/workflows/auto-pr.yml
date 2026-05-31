@@ -11,17 +11,26 @@ jobs:
     name: Create PR if not exists
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: write
       contents: read
 
     steps:
+      # GitHub App token: GITHUB_TOKEN과 달리 이 토큰으로 생성한 PR은
+      # pull_request 이벤트(Branch Naming, PR Check 등)를 정상 트리거한다.
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 50
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: Create Pull Request
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           BRANCH="${{ github.ref_name }}"
 
