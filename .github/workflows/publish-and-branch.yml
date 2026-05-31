@@ -85,6 +85,16 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # ── 3.5. 오래된 이미지 정리 ─────────────────────────
+      # 레지스트리 최신 20개 항목만 유지 (1 릴리즈 ≈ 3 항목: 태그 + SHA ×2 → 약 6~7 릴리즈 분량)
+      - name: Delete old container versions
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: 'signum-adapters'
+          package-type: 'container'
+          min-versions-to-keep: 20
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       # ── 4. 다음 버전 브랜치 자동 생성 ────────────────────
       - name: Create next release and feature branches
         shell: bash
