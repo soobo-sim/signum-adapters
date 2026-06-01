@@ -12,6 +12,8 @@ Error handling contract:
 
 from __future__ import annotations
 
+import asyncio
+import inspect
 import json
 import logging
 from collections.abc import Callable
@@ -391,9 +393,6 @@ class GmoCoinAdapter:
         Raises:
             websockets.exceptions.WebSocketException: On connection errors.
         """
-        import asyncio
-        import inspect
-
         url = self._settings.GMO_COIN_WS_PUBLIC_URL
         subscribe_msg = json.dumps({"command": "subscribe", "channel": "trades", "symbol": symbol})
         async with websockets.connect(url) as ws:
@@ -418,9 +417,6 @@ class GmoCoinAdapter:
         Raises:
             websockets.exceptions.WebSocketException: On connection errors.
         """
-        import asyncio
-        import inspect
-
         url = self._settings.GMO_COIN_WS_PRIVATE_URL
         subscribe_msg = json.dumps({"command": "subscribe", "channel": "executionEvents"})
         async with websockets.connect(url) as ws:

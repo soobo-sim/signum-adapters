@@ -22,7 +22,7 @@ from signum_adapters.gmo_coin.models import (
     PositionSide,
     Ticker,
 )
-from signum_adapters.gmo_coin.utils import _floor_to_step, is_maintenance_window
+from signum_adapters.gmo_coin.utils import is_maintenance_window
 
 __all__ = [
     "GmoCoinAdapter",
@@ -38,6 +38,5 @@ __all__ = [
     "Position",
     "PositionSide",
     "Ticker",
-    "_floor_to_step",
     "is_maintenance_window",
 ]

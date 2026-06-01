@@ -46,11 +46,6 @@ class TestFloorToStep:
 
 
 class TestIsMaintenanceWindow:
-    def _make_jst(self, weekday: int, hour: int) -> datetime:
-        """Return a timezone-aware datetime in JST with the given weekday/hour."""
-        base = datetime(2024, 1, 6 + weekday, hour, 0, 0, tzinfo=_JST)  # 2024-01-06 is Saturday
-        return base
-
     def test_during_maintenance_returns_true(self):
         # Saturday 16:30 JST
         target = datetime(2024, 1, 6, 16, 30, 0, tzinfo=_JST)
