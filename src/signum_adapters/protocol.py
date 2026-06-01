@@ -15,9 +15,17 @@ Usage::
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any, Protocol, runtime_checkable
 
-from signum_adapters.types import Balance, FxPosition, Order, Ticker
+from signum_adapters.types import (
+    Balance,
+    Collateral,
+    ExchangeConstraints,
+    FxPosition,
+    Order,
+    Ticker,
+)
 
 
 @runtime_checkable
@@ -38,6 +46,14 @@ class ExchangeAdapter(Protocol):
     async def __aexit__(self, *args: Any) -> None:
         ...
 
+    async def connect(self) -> None:
+        """Open the underlying HTTP (and WebSocket) session."""
+        ...
+
+    async def disconnect(self) -> None:
+        """Close the underlying HTTP (and WebSocket) session."""
+        ...
+
     async def get_ticker(self, symbol: str) -> Ticker:
         """Return the current best bid/ask snapshot for *symbol*."""
         ...
@@ -48,6 +64,14 @@ class ExchangeAdapter(Protocol):
 
     async def get_positions(self, symbol: str) -> list[FxPosition]:
         """Return a list of open leveraged positions for *symbol*."""
+        ...
+
+    async def get_collateral(self) -> Collateral:
+        """Return the margin/collateral account summary."""
+        ...
+
+    async def get_exchange_constraints(self, symbol: str) -> ExchangeConstraints:
+        """Return trading constraints (lot size, tick size, etc.) for *symbol*."""
         ...
 
     async def create_order(
@@ -61,4 +85,22 @@ class ExchangeAdapter(Protocol):
         time_in_force: str | None = None,
     ) -> Order:
         """Submit a new order and return the resulting ``Order`` object."""
+        ...
+
+    async def close_position(self, position_id: str, symbol: str, size: float) -> Order:
+        """Close (or partially close) an open position and return the resulting ``Order``."""
+        ...
+
+    async def subscribe_trades(self, symbol: str, callback: Callable[[Any], Any]) -> None:
+        """Subscribe to the public real-time trade stream for *symbol*.
+
+        *callback* is invoked for every incoming trade message.
+        """
+        ...
+
+    async def subscribe_executions(self, callback: Callable[[Any], Any]) -> None:
+        """Subscribe to the private real-time execution event stream.
+
+        *callback* is invoked for every incoming execution event.
+        """
         ...

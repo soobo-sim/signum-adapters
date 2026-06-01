@@ -13,6 +13,8 @@ from signum_adapters.gmo_coin.client import (
 )
 from signum_adapters.gmo_coin.models import (
     Balance,
+    Collateral,
+    ExchangeConstraints,
     Order,
     OrderSide,
     OrderType,
@@ -20,6 +22,7 @@ from signum_adapters.gmo_coin.models import (
     PositionSide,
     Ticker,
 )
+from signum_adapters.gmo_coin.utils import is_maintenance_window
 
 __all__ = [
     "GmoCoinAdapter",
@@ -27,10 +30,13 @@ __all__ = [
     "ExchangeServerError",
     "InsufficientBalanceError",
     "Balance",
+    "Collateral",
+    "ExchangeConstraints",
     "Order",
     "OrderSide",
     "OrderType",
     "Position",
     "PositionSide",
     "Ticker",
+    "is_maintenance_window",
 ]
