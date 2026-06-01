@@ -18,6 +18,11 @@ from typing import Any
 
 import httpx
 
+from signum_adapters.errors import (
+    ExchangeApiError,
+    ExchangeServerError,
+    InsufficientBalanceError,
+)
 from signum_adapters.gmo_coin.models import Balance, Order, Position, Ticker
 from signum_adapters.gmo_coin.parsers import (
     parse_balance,
@@ -29,21 +34,6 @@ from signum_adapters.gmo_coin.signer import build_auth_headers
 from signum_adapters.settings import gmo_coin_settings
 
 logger = logging.getLogger(__name__)
-
-
-# ── Custom exceptions ─────────────────────────────────────────────────────────
-
-
-class ExchangeApiError(Exception):
-    """Raised when GMO Coin API returns a non-zero status code."""
-
-
-class InsufficientBalanceError(ExchangeApiError):
-    """Raised when GMO Coin returns ERR-422 (insufficient balance)."""
-
-
-class ExchangeServerError(ExchangeApiError):
-    """Raised when GMO Coin returns a 5xx server error."""
 
 
 # ── GmoCoinAdapter ────────────────────────────────────────────────────────────
