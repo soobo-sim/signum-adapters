@@ -21,7 +21,9 @@ class GmoCoinSettings(BaseSettings):
     )
 
     # ── 레포 IN: 공개 설정 (기본값 있음) ──────────────────────────────────
-    GMO_COIN_BASE_URL: str = "https://api.coin.z.com"
+    GMO_COIN_BASE_URL: str = "https://api.coin.z.com"                    # HARDCODE_OK: overridable via env; GMO Coin canonical endpoint
+    GMO_COIN_WS_PUBLIC_URL: str = "wss://api.coin.z.com/ws/public/v1"    # HARDCODE_OK: overridable via env; GMO Coin canonical endpoint
+    GMO_COIN_WS_PRIVATE_URL: str = "wss://api.coin.z.com/ws/private/v1"  # HARDCODE_OK: overridable via env; GMO Coin canonical endpoint
     REQUEST_TIMEOUT: int = 30       # HTTP 요청 타임아웃 (초)
     POST_RATE_LIMIT: int = 20       # GMO Coin POST 레이트 상한 (회/초, API 스펙 고정)  # HARDCODE_OK: GMO Coin API 스펙 불변값
     LOG_LEVEL: str = "INFO"
