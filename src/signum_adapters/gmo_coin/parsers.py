@@ -7,6 +7,8 @@ from typing import Any
 
 from signum_adapters.gmo_coin.models import (
     Balance,
+    Collateral,
+    ExchangeConstraints,
     Order,
     OrderSide,
     OrderType,
@@ -113,3 +115,43 @@ def parse_api_error(response_data: dict[str, Any]) -> str | None:
         return None
     first = messages[0] if isinstance(messages, list) else {}
     return first.get("message_string", str(first))
+
+
+def parse_collateral(data: dict[str, Any]) -> Collateral:
+    """Parse the margin account entry from ``/private/v1/account/margin`` response.
+
+    Args:
+        data: The ``data`` object from the API response.
+
+    Returns:
+        ``Collateral`` domain model.
+    """
+    return Collateral(
+        equity=float(data.get("actualProfitLoss", 0)),
+        available_amount=float(data.get("availableAmount", 0)),
+        margin=float(data.get("margin", 0)),
+        margin_ratio=float(data.get("marginRatio", 0)),
+        symbol="JPY",
+    )
+
+
+def parse_constraints(data: dict[str, Any]) -> ExchangeConstraints:
+    """Parse a single symbol entry from ``/public/v1/symbols`` response.
+
+    Args:
+        data: One element from the ``data`` list in the API response.
+
+    Returns:
+        ``ExchangeConstraints`` domain model.
+
+    Raises:
+        KeyError: If the ``symbol`` field is missing.
+    """
+    return ExchangeConstraints(
+        symbol=data["symbol"],
+        min_order_size=float(data.get("minOrderSize", 0)),
+        max_order_size=float(data.get("maxOrderSize", 0)),
+        size_step=float(data.get("sizeStep", 0)),
+        price_step=float(data.get("tickSize", 0)),
+    )
+

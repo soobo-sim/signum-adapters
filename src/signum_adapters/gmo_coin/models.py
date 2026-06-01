@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from signum_adapters.types import (
     Balance,
+    Collateral,
+    ExchangeConstraints,
     FxPosition,
     Order,
     OrderSide,
@@ -24,6 +26,8 @@ Position = FxPosition
 
 __all__ = [
     "Balance",
+    "Collateral",
+    "ExchangeConstraints",
     "FxPosition",
     "Order",
     "OrderSide",
