@@ -54,9 +54,13 @@ jobs:
           TAG="${{ steps.version.outputs.tag }}"
           git config user.email "ci@signum-adapters.bot"
           git config user.name "CI Bot"
-          git tag "$TAG"
-          git push origin "$TAG"
-          echo "✅ Tag pushed: $TAG"
+          if git ls-remote --tags origin "$TAG" | grep -q "refs/tags/${TAG}$"; then
+            echo "⚠️ Tag $TAG already exists on remote — skip tag creation"
+          else
+            git tag "$TAG"
+            git push origin "$TAG"
+            echo "✅ Tag pushed: $TAG"
+          fi
 
       # ── 3. Docker 이미지 빌드 + ghcr.io push ──────────────
       - name: Set up Docker Buildx
@@ -112,14 +116,24 @@ jobs:
           git checkout "$BASE_RELEASE"
           git pull origin "$BASE_RELEASE"
 
-          git checkout -b "$NEXT_RELEASE"
-          git push origin "$NEXT_RELEASE"
-          echo "✅ Created: $NEXT_RELEASE"
+          # release/vX.Y 생성
+          if git ls-remote --heads origin "$NEXT_RELEASE" | grep -q "$NEXT_RELEASE"; then
+            echo "⚠️ Branch $NEXT_RELEASE already exists — skip"
+          else
+            git checkout -b "$NEXT_RELEASE"
+            git push origin "$NEXT_RELEASE"
+            echo "✅ Created: $NEXT_RELEASE"
+            git checkout "$BASE_RELEASE"
+          fi
 
-          git checkout "$BASE_RELEASE"
-          git checkout -b "$NEXT_FEATURE"
-          git push origin "$NEXT_FEATURE"
-          echo "✅ Created: $NEXT_FEATURE"
+          # feature/vX.Y 생성
+          if git ls-remote --heads origin "$NEXT_FEATURE" | grep -q "$NEXT_FEATURE"; then
+            echo "⚠️ Branch $NEXT_FEATURE already exists — skip"
+          else
+            git checkout -b "$NEXT_FEATURE"
+            git push origin "$NEXT_FEATURE"
+            echo "✅ Created: $NEXT_FEATURE"
+          fi
 
       # ── 5. 완료 요약 코멘트 ───────────────────────────────
       - name: Post release summary comment
