@@ -12,25 +12,38 @@ Error handling contract:
 
 from __future__ import annotations
 
+import asyncio
+import inspect
 import json
 import logging
+from collections.abc import Callable
 from typing import Any
 
 import httpx
+import websockets
 
 from signum_adapters.errors import (
     ExchangeApiError,
     ExchangeServerError,
     InsufficientBalanceError,
 )
-from signum_adapters.gmo_coin.models import Balance, Order, Position, Ticker
+from signum_adapters.gmo_coin.models import (
+    Balance,
+    Collateral,
+    ExchangeConstraints,
+    Order,
+    Position,
+    Ticker,
+)
 from signum_adapters.gmo_coin.parsers import (
     parse_balance,
+    parse_collateral,
+    parse_constraints,
     parse_order,
     parse_position,
     parse_ticker,
 )
-from signum_adapters.gmo_coin.signer import build_auth_headers
+from signum_adapters.gmo_coin.signer import build_auth_headers, build_signature, build_timestamp
 from signum_adapters.settings import gmo_coin_settings
 
 logger = logging.getLogger(__name__)
@@ -58,13 +71,30 @@ class GmoCoinAdapter:
     # ── Context manager ───────────────────────────────────────────────────────
 
     async def __aenter__(self) -> GmoCoinAdapter:
-        self._client = httpx.AsyncClient(
-            base_url=self._settings.GMO_COIN_BASE_URL,
-            timeout=self._settings.REQUEST_TIMEOUT,
-        )
+        await self.connect()
         return self
 
     async def __aexit__(self, *args: Any) -> None:
+        await self.disconnect()
+
+    # ── Lifecycle ─────────────────────────────────────────────────────────────
+
+    async def connect(self) -> None:
+        """Open the underlying HTTP session.
+
+        Idempotent: calling ``connect`` on an already-connected adapter is safe.
+        """
+        if self._client is None:
+            self._client = httpx.AsyncClient(
+                base_url=self._settings.GMO_COIN_BASE_URL,
+                timeout=self._settings.REQUEST_TIMEOUT,
+            )
+
+    async def disconnect(self) -> None:
+        """Close the underlying HTTP session.
+
+        Idempotent: calling ``disconnect`` on an already-disconnected adapter is safe.
+        """
         if self._client is not None:
             await self._client.aclose()
             self._client = None
@@ -256,3 +286,161 @@ class GmoCoinAdapter:
         order_data.setdefault("size", size)
         order_data.setdefault("status", "ORDERED")
         return parse_order(order_data)
+
+    async def get_open_positions(self, symbol: str) -> list[Position]:
+        """Fetch open FX positions for *symbol*.
+
+        This is an alias for :meth:`get_positions` provided for compatibility
+        with the signum-engine naming convention.
+
+        Args:
+            symbol: Trading pair symbol (e.g. ``"BTC_JPY"``).
+
+        Returns:
+            List of open ``Position`` (``FxPosition``) objects.
+
+        Raises:
+            ExchangeApiError: On non-zero API status.
+        """
+        return await self.get_positions(symbol)
+
+    async def close_position(self, position_id: str, symbol: str, size: float) -> Order:
+        """Close (or partially close) an open position.
+
+        Sends a ``closeOrder`` request to GMO Coin using ``executionType="MARKET"``.
+
+        Args:
+            position_id: The ID of the position to close.
+            symbol: Trading pair symbol (e.g. ``"BTC_JPY"``).
+            size: The quantity to close.
+
+        Returns:
+            ``Order`` with the assigned order ID from GMO Coin.
+
+        Raises:
+            InsufficientBalanceError: When GMO Coin returns ERR-422.
+            ExchangeServerError: When GMO Coin returns a 5xx status.
+            ExchangeApiError: On any other non-zero API status.
+        """
+        path = "/private/v1/closeOrder"
+        body: dict[str, Any] = {
+            "symbol": symbol,
+            "executionType": "MARKET",
+            "settlePosition": [
+                {"positionId": position_id, "size": str(size)},
+            ],
+        }
+        raw = await self._post_private(path, body)
+        self._check_api_status(raw, path)
+        order_data = raw.get("data", {})
+        if isinstance(order_data, (int, str)):
+            order_data = {"orderId": str(order_data)}
+        order_data.setdefault("symbol", symbol)
+        order_data.setdefault("side", "SELL")
+        order_data.setdefault("executionType", "MARKET")
+        order_data.setdefault("size", str(size))
+        order_data.setdefault("status", "ORDERED")
+        return parse_order(order_data)
+
+    async def get_collateral(self) -> Collateral:
+        """Fetch the margin/collateral account summary.
+
+        Returns:
+            ``Collateral`` with equity, available amount, margin, and ratio.
+
+        Raises:
+            ExchangeApiError: On non-zero API status.
+        """
+        path = "/private/v1/account/margin"
+        raw = await self._get_private(path)
+        self._check_api_status(raw, path)
+        return parse_collateral(raw.get("data", {}))
+
+    async def get_exchange_constraints(self, symbol: str) -> ExchangeConstraints:
+        """Fetch trading constraints for *symbol*.
+
+        Args:
+            symbol: Trading pair symbol (e.g. ``"BTC_JPY"``).
+
+        Returns:
+            ``ExchangeConstraints`` with lot size, tick size, etc.
+
+        Raises:
+            ExchangeApiError: If *symbol* is not found or on non-zero API status.
+        """
+        path = "/public/v1/symbols"
+        raw = await self._get(path)
+        self._check_api_status(raw, path)
+        items = raw.get("data", [])
+        for item in items:
+            if item.get("symbol") == symbol:
+                return parse_constraints(item)
+        raise ExchangeApiError(f"Symbol not found in exchange constraints: {symbol!r}")
+
+    # ── WebSocket ─────────────────────────────────────────────────────────────
+
+    async def subscribe_trades(self, symbol: str, callback: Callable[[Any], Any]) -> None:
+        """Subscribe to the public real-time trade stream for *symbol*.
+
+        Opens a WebSocket connection to the GMO Coin public endpoint and invokes
+        *callback* for each incoming trade message.  The method returns only when
+        the WebSocket connection is closed.
+
+        Args:
+            symbol: Trading pair symbol (e.g. ``"BTC_JPY"``).
+            callback: Async or sync callable invoked with each parsed message dict.
+
+        Raises:
+            websockets.exceptions.WebSocketException: On connection errors.
+        """
+        url = self._settings.GMO_COIN_WS_PUBLIC_URL
+        subscribe_msg = json.dumps({"command": "subscribe", "channel": "trades", "symbol": symbol})
+        async with websockets.connect(url) as ws:
+            await ws.send(subscribe_msg)
+            async for raw_msg in ws:
+                data = json.loads(raw_msg)
+                if inspect.iscoroutinefunction(callback):
+                    await callback(data)
+                else:
+                    asyncio.get_running_loop().call_soon(callback, data)
+
+    async def subscribe_executions(self, callback: Callable[[Any], Any]) -> None:
+        """Subscribe to the private real-time execution event stream.
+
+        Opens an authenticated WebSocket connection to the GMO Coin private
+        endpoint, sends an HMAC-SHA256 authentication frame, then subscribes
+        to ``executionEvents``.  Invokes *callback* for each incoming message.
+        The method returns only when the WebSocket connection is closed.
+
+        Args:
+            callback: Async or sync callable invoked with each parsed message dict.
+
+        Raises:
+            websockets.exceptions.WebSocketException: On connection errors.
+        """
+        url = self._settings.GMO_COIN_WS_PRIVATE_URL
+        ws_path = "/ws/private/v1"
+        timestamp = build_timestamp()
+        signature = build_signature(
+            self._settings.GMO_COIN_API_SECRET,
+            timestamp,
+            "GET",
+            ws_path,
+        )
+        auth_msg = json.dumps({
+            "command": "auth",
+            "channel": "auth",
+            "api-key": self._settings.GMO_COIN_API_KEY,
+            "timestamp": timestamp,
+            "sign": signature,
+        })
+        subscribe_msg = json.dumps({"command": "subscribe", "channel": "executionEvents"})
+        async with websockets.connect(url) as ws:
+            await ws.send(auth_msg)
+            await ws.send(subscribe_msg)
+            async for raw_msg in ws:
+                data = json.loads(raw_msg)
+                if inspect.iscoroutinefunction(callback):
+                    await callback(data)
+                else:
+                    asyncio.get_running_loop().call_soon(callback, data)

@@ -12,6 +12,8 @@ from signum_adapters.gmo_coin.models import (
 from signum_adapters.gmo_coin.parsers import (
     parse_api_error,
     parse_balance,
+    parse_collateral,
+    parse_constraints,
     parse_order,
     parse_position,
     parse_ticker,
@@ -248,3 +250,81 @@ class TestParseApiError:
         result = parse_api_error(data)
         assert result is not None
         assert isinstance(result, str)
+
+
+# ── parse_collateral ──────────────────────────────────────────────────────────
+
+
+class TestParseCollateral:
+    def _sample(self) -> dict:
+        return {
+            "actualProfitLoss": "1000000",
+            "availableAmount": "800000",
+            "margin": "200000",
+            "marginRatio": "0.2",
+        }
+
+    def test_equity(self):
+        c = parse_collateral(self._sample())
+        assert c.equity == 1_000_000.0
+
+    def test_available_amount(self):
+        c = parse_collateral(self._sample())
+        assert c.available_amount == 800_000.0
+
+    def test_margin(self):
+        c = parse_collateral(self._sample())
+        assert c.margin == 200_000.0
+
+    def test_margin_ratio(self):
+        c = parse_collateral(self._sample())
+        assert c.margin_ratio == 0.2
+
+    def test_symbol_defaults_to_jpy(self):
+        c = parse_collateral(self._sample())
+        assert c.symbol == "JPY"
+
+    def test_defaults_on_empty(self):
+        c = parse_collateral({})
+        assert c.equity == 0.0
+        assert c.available_amount == 0.0
+        assert c.margin == 0.0
+        assert c.margin_ratio == 0.0
+
+
+# ── parse_constraints ─────────────────────────────────────────────────────────
+
+
+class TestParseConstraints:
+    def _sample(self) -> dict:
+        return {
+            "symbol": "BTC_JPY",
+            "minOrderSize": "0.01",
+            "maxOrderSize": "100",
+            "sizeStep": "0.01",
+            "tickSize": "1",
+        }
+
+    def test_symbol(self):
+        ec = parse_constraints(self._sample())
+        assert ec.symbol == "BTC_JPY"
+
+    def test_min_order_size(self):
+        ec = parse_constraints(self._sample())
+        assert ec.min_order_size == 0.01
+
+    def test_max_order_size(self):
+        ec = parse_constraints(self._sample())
+        assert ec.max_order_size == 100.0
+
+    def test_size_step(self):
+        ec = parse_constraints(self._sample())
+        assert ec.size_step == 0.01
+
+    def test_price_step(self):
+        ec = parse_constraints(self._sample())
+        assert ec.price_step == 1.0
+
+    def test_raises_on_missing_symbol(self):
+        with pytest.raises(KeyError):
+            parse_constraints({"minOrderSize": "0.01"})
