@@ -43,7 +43,7 @@ from signum_adapters.gmo_coin.parsers import (
     parse_position,
     parse_ticker,
 )
-from signum_adapters.gmo_coin.signer import build_auth_headers
+from signum_adapters.gmo_coin.signer import build_auth_headers, build_signature, build_timestamp
 from signum_adapters.settings import gmo_coin_settings
 
 logger = logging.getLogger(__name__)
@@ -402,13 +402,14 @@ class GmoCoinAdapter:
                 if inspect.iscoroutinefunction(callback):
                     await callback(data)
                 else:
-                    asyncio.get_event_loop().call_soon(callback, data)
+                    asyncio.get_running_loop().call_soon(callback, data)
 
     async def subscribe_executions(self, callback: Callable[[Any], Any]) -> None:
         """Subscribe to the private real-time execution event stream.
 
         Opens an authenticated WebSocket connection to the GMO Coin private
-        endpoint and invokes *callback* for each incoming execution event.
+        endpoint, sends an HMAC-SHA256 authentication frame, then subscribes
+        to ``executionEvents``.  Invokes *callback* for each incoming message.
         The method returns only when the WebSocket connection is closed.
 
         Args:
@@ -418,12 +419,28 @@ class GmoCoinAdapter:
             websockets.exceptions.WebSocketException: On connection errors.
         """
         url = self._settings.GMO_COIN_WS_PRIVATE_URL
+        ws_path = "/ws/private/v1"
+        timestamp = build_timestamp()
+        signature = build_signature(
+            self._settings.GMO_COIN_API_SECRET,
+            timestamp,
+            "GET",
+            ws_path,
+        )
+        auth_msg = json.dumps({
+            "command": "auth",
+            "channel": "auth",
+            "api-key": self._settings.GMO_COIN_API_KEY,
+            "timestamp": timestamp,
+            "sign": signature,
+        })
         subscribe_msg = json.dumps({"command": "subscribe", "channel": "executionEvents"})
         async with websockets.connect(url) as ws:
+            await ws.send(auth_msg)
             await ws.send(subscribe_msg)
             async for raw_msg in ws:
                 data = json.loads(raw_msg)
                 if inspect.iscoroutinefunction(callback):
                     await callback(data)
                 else:
-                    asyncio.get_event_loop().call_soon(callback, data)
+                    asyncio.get_running_loop().call_soon(callback, data)
