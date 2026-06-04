@@ -1,4 +1,4 @@
-name: Publish & Branch
+name: Cleanup After Main Merge
 
 on:
   pull_request:
@@ -113,7 +113,7 @@ jobs:
               repo: context.repo.repo,
               issue_number: pr.number,
               body: [
-                `## ✅ Release branch cycle complete: \`${releaseVersion}\``,
+                `## ✅ Cleanup after main merge complete: \`${releaseVersion}\``,
                 ``,
                 `| 항목 | 결과 |`,
                 `|------|------|`,
