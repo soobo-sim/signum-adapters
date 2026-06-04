@@ -1,0 +1,102 @@
+name: CD Docker
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_env:
+        description: 'Deploy target/environment label'
+        required: false
+        default: 'production'
+        type: string
+      release_version_override:
+        description: 'Optional override version tag (e.g. v1.2). Empty means derived from release branch.'
+        required: false
+        default: ''
+        type: string
+
+jobs:
+  deploy:
+    name: Manual release publish/deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: ${{ github.event.inputs.deploy_env || 'production' }}
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate release branch
+        shell: bash
+        run: |
+          REF_NAME="${{ github.ref_name }}"
+          if ! echo "$REF_NAME" | grep -qE '^release/v[0-9]+\.[0-9]+$'; then
+            echo "❌ This workflow is manual-only for release/vX.Y branches."
+            echo "Current ref: $REF_NAME"
+            exit 1
+          fi
+
+      - name: Resolve release metadata
+        id: meta
+        shell: bash
+        run: |
+          BRANCH="${{ github.ref_name }}"
+          BRANCH_VERSION=$(echo "$BRANCH" | sed -E 's|^release/(v[0-9]+\.[0-9]+)$|\1|')
+          OVERRIDE="${{ github.event.inputs.release_version_override }}"
+
+          if [ -n "$OVERRIDE" ]; then
+            VERSION="$OVERRIDE"
+          else
+            VERSION="$BRANCH_VERSION"
+          fi
+
+          if ! echo "$VERSION" | grep -qE '^v[0-9]+\.[0-9]+$'; then
+            echo "❌ Invalid version format: $VERSION"
+            exit 1
+          fi
+
+          echo "release_branch=$BRANCH" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "image=ghcr.io/${{ github.repository }}:${VERSION}" >> $GITHUB_OUTPUT
+          echo "🚀 Publishing $VERSION from $BRANCH"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push release image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          build-args: APP_VERSION=${{ steps.meta.outputs.version }}
+          tags: |
+            ghcr.io/${{ github.repository }}:${{ steps.meta.outputs.version }}
+            ghcr.io/${{ github.repository }}:latest
+          labels: |
+            org.opencontainers.image.version=${{ steps.meta.outputs.version }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Verify image exists in registry
+        shell: bash
+        run: |
+          docker manifest inspect "${{ steps.meta.outputs.image }}" > /dev/null
+          echo "✅ Image found: ${{ steps.meta.outputs.image }}"
+
+      - name: Release summary
+        shell: bash
+        run: |
+          echo "✅ Manual CD completed"
+          echo "- release branch: ${{ steps.meta.outputs.release_branch }}"
+          echo "- version: ${{ steps.meta.outputs.version }}"
+          echo "- image: ${{ steps.meta.outputs.image }}"
