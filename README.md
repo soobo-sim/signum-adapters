@@ -42,6 +42,10 @@ pytest -m "not requires_api_key"
 ruff check src/ tests/
 ```
 
+## Release Note
+
+- Release publishing is executed manually from `release/vX.Y` branch via GitHub Actions.
+
 ## Related Repositories
 
 - [signum-engine](https://github.com/soobo-sim/trading-engine) — Platform core + Protocol definitions
