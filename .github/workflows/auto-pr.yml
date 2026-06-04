@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - 'feature/v*'
-      - 'hotfix/*'
 
 jobs:
   create-pr:
@@ -14,8 +13,8 @@ jobs:
       contents: read
 
     steps:
-      # GitHub App token: GITHUB_TOKEN과 달리 이 토큰으로 생성한 PR은
-      # pull_request 이벤트(Branch Naming, PR Check 등)를 정상 트리거한다.
+      # GITHUB_TOKEN으로 생성한 PR은 일부 이벤트 트리거가 제한될 수 있어
+      # GitHub App 토큰을 사용한다.
       - name: Generate GitHub App token
         id: app-token
         uses: actions/create-github-app-token@v1
@@ -34,27 +33,19 @@ jobs:
         run: |
           BRANCH="${{ github.ref_name }}"
 
-          # feature/v0.1 또는 feature/v0.1_text → release/v0.1
-          # hotfix/{text} → main
-          if echo "$BRANCH" | grep -qE '^feature/v[0-9]+\.[0-9]+'; then
-            VERSION=$(echo "$BRANCH" | sed 's|feature/v||' | sed 's|_.*||')
-            BASE_BRANCH="release/v${VERSION}"
-            PREFIX="feat"
-          elif echo "$BRANCH" | grep -qE '^hotfix/'; then
-            BASE_BRANCH="main"
-            PREFIX="hotfix"
-          else
-            echo "Unrecognized branch pattern: $BRANCH — skip"
+          if ! echo "$BRANCH" | grep -qE '^feature/v[0-9]+\.[0-9]+(_[a-z0-9][a-z0-9\-]*)?$'; then
+            echo "Not a managed feature branch: $BRANCH - skip"
             exit 0
           fi
 
-          # base 브랜치가 원격에 존재하는지 확인
+          VERSION=$(echo "$BRANCH" | sed -E 's|^feature/(v[0-9]+\.[0-9]+).*$|\1|')
+          BASE_BRANCH="release/${VERSION}"
+
           if ! git ls-remote --exit-code origin "$BASE_BRANCH" > /dev/null 2>&1; then
             echo "Base branch '$BASE_BRANCH' does not exist on remote — skip"
             exit 0
           fi
 
-          # 이미 PR이 존재하면 스킵
           EXISTING=$(gh pr list --head "$BRANCH" --base "$BASE_BRANCH" \
             --json number --jq '.[0].number' 2>/dev/null)
           if [ -n "$EXISTING" ]; then
@@ -62,12 +53,10 @@ jobs:
             exit 0
           fi
 
-          # PR 제목 생성
-          VERSION_LABEL=$(echo "$BRANCH" | grep -oE 'v[0-9]+\.[0-9]+' | head -1)
-          SUFFIX=$(echo "$BRANCH" | sed 's|feature/v[0-9]*\.[0-9]*_\?||' | sed 's|hotfix/||' | sed 's|_| |g' | sed 's|-| |g')
+          TITLE="[feat] ${VERSION} -> ${BASE_BRANCH}"
 
           gh pr create \
-            --title "[${PREFIX}] ${VERSION_LABEL} ${SUFFIX}" \
+            --title "$TITLE" \
             --body "$(cat .github/PULL_REQUEST_TEMPLATE.md 2>/dev/null || echo 'PR 설명을 작성해주세요.')" \
             --base "$BASE_BRANCH" \
             --head "$BRANCH"
